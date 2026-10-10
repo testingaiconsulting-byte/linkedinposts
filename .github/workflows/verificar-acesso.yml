@@ -1,0 +1,23 @@
+name: Verificar acesso ao LinkedIn
+
+on:
+  workflow_dispatch:
+  schedule:
+    # todas as segundas às 08:00 UTC
+    - cron: "0 8 * * 1"
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Testar o token
+        env:
+          TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "Falta o segredo LINKEDIN_ACCESS_TOKEN"; exit 1; fi
+          code=$(curl -s -o resp.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" https://api.linkedin.com/v2/userinfo)
+          if [ "$code" != "200" ]; then
+            echo "O acesso ao LinkedIn falhou ($code). Gere um token novo e atualize o segredo LINKEDIN_ACCESS_TOKEN."
+            cat resp.json; exit 1
+          fi
+          python3 -c "import json;d=json.load(open('resp.json'));print('Acesso OK para', d.get('name'), '· autor: urn:li:person:'+d.get('sub',''))"
