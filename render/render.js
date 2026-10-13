@@ -1,8 +1,11 @@
-// Gera os visuais (JPG 1080x1350) de um post da Central de Conteúdo, com a identidade
-// "Claudio Braga · AI Consulting" (render/draw.js, render/assets, render/fonts).
+// Gera os visuais de um post da Central de Conteúdo com a identidade "Claudio Braga · AI Consulting"
+// (render/draw.js, render/assets, render/fonts).
 // Uso: node render/render.js <post.json> <pasta-de-saida> [marca.json]
-// Escreve 01.jpg, 02.jpg, ... e imprime a lista de ficheiros.
-const fs = require("fs"), path = require("path");
+//  - carrossel/imagem: 01.jpg, 02.jpg, ... (1080x1350)
+//  - story: 01.jpg (1080x1920)
+//  - reel: reel.mp4 (1080x1920, 24 fps, com faixa de áudio silenciosa) + capa.jpg
+// Imprime a lista de ficheiros criados (JSON).
+const fs = require("fs"), path = require("path"), os = require("os"), { execFileSync } = require("child_process");
 let chromium;
 for (const p of ["playwright", "/opt/npm-tools/node_modules/playwright"]) { try { ({ chromium } = require(p)); break; } catch (e) {} }
 if (!chromium) { console.error("Playwright não encontrado"); process.exit(1); }
@@ -16,6 +19,9 @@ const brand = Object.assign({ ink: "#111111", paper: "#FFFFFF", muted: "#8A8A8A"
 const here = __dirname;
 const b64 = f => fs.readFileSync(path.join(here, f)).toString("base64");
 const DRAW = fs.readFileSync(path.join(here, "draw.js"), "utf8");
+const fmt = post.format || "carrossel";
+const tall = fmt === "reel" || fmt === "story";
+const W = 1080, H = tall ? 1920 : 1350, FPS = 24;
 
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });
@@ -24,20 +30,51 @@ const DRAW = fs.readFileSync(path.join(here, "draw.js"), "utf8");
   const css = `@font-face{font-family:"Space Grotesk";src:url(data:font/ttf;base64,${b64("fonts/SpaceGrotesk.ttf")});font-weight:300 700}
 @font-face{font-family:"Syncopate";src:url(data:font/ttf;base64,${b64("fonts/Syncopate-Bold.ttf")});font-weight:700}`;
   await page.setContent(`<html><head><style>${css}</style></head><body>
-<canvas id="c" width="1080" height="1350"></canvas>
+<canvas id="c" width="${W}" height="${H}"></canvas>
 <img id="art" src="data:image/jpeg;base64,${b64("assets/arte.jpg")}"><img id="logo" src="data:image/jpeg;base64,${b64("assets/logo.jpg")}">
-<script>${DRAW}</script></body></html>`);
-  const n = Math.max(1, (post.slides || []).length);
+<script>${DRAW}
+window.ready=(async()=>{ await Promise.all(['700 80px "Space Grotesk"','600 40px "Space Grotesk"','400 40px "Space Grotesk"','500 24px "Space Grotesk"','700 19px "Syncopate"'].map(f=>document.fonts.load(f)));
+  const ims=[document.getElementById("art"),document.getElementById("logo")]; await Promise.all(ims.map(im=>im.complete?0:new Promise(r=>{im.onload=r;im.onerror=r;}))); })();
+window.IMGS=()=>({art:document.getElementById("art"),logo:document.getElementById("logo")});
+window.still=(post,i,brand)=>{ const cv=document.getElementById("c"); drawSlideCB(cv,post,i,"pt",brand,IMGS()); return cv.toDataURL("image/jpeg",0.92); };
+window.TXT={};
+window.frame=(post,i,brand,t,tScene,prevI,tPrev)=>{ // t: tempo total (s), tScene: tempo desde o início da cena (s)
+  const cv=document.getElementById("c"), ctx=cv.getContext("2d");
+  const txt=k=>{ if(!TXT[k]){ const o=document.createElement("canvas"); o.width=cv.width; o.height=cv.height; drawSlideCB(o,post,k,"pt",brand,IMGS(),{layer:"text"}); TXT[k]=o; } return TXT[k]; };
+  drawSlideCB(cv,post,i,"pt",brand,IMGS(),{layer:"bg",drift:t});
+  const e=x=>1-Math.pow(1-Math.min(1,Math.max(0,x)),3);
+  if(prevI!=null&&tPrev<0.35){ ctx.globalAlpha=1-e(tPrev/0.35); ctx.drawImage(txt(prevI),0,-30*e(tPrev/0.35)); }
+  const a=i===0?e(tScene/0.25):e((tScene-0.15)/0.5); ctx.globalAlpha=a; ctx.drawImage(txt(i),0,40*(1-a)); ctx.globalAlpha=1;
+  return cv.toDataURL("image/jpeg",0.9); };
+</script></body></html>`);
+  await page.evaluate(() => window.ready);
   const files = [];
-  for (let i = 0; i < n; i++) {
-    const data = await page.evaluate(async ({ post, i, brand }) => {
-      await Promise.all(['700 80px "Space Grotesk"', '600 40px "Space Grotesk"', '400 40px "Space Grotesk"', '500 24px "Space Grotesk"', '700 19px "Syncopate"'].map(f => document.fonts.load(f)));
-      const art = document.getElementById("art"), logo = document.getElementById("logo");
-      await Promise.all([art, logo].map(im => im.complete ? 0 : new Promise(r => { im.onload = r; im.onerror = r; })));
-      const cv = document.getElementById("c"); drawSlideCB(cv, post, i, "pt", brand, { art, logo }); return cv.toDataURL("image/jpeg", 0.92);
-    }, { post, i, brand });
-    const f = path.join(outDir, String(i + 1).padStart(2, "0") + ".jpg");
-    fs.writeFileSync(f, Buffer.from(data.split(",")[1], "base64")); files.push(f);
+  const save = (f, data) => { fs.writeFileSync(f, Buffer.from(data.split(",")[1], "base64")); files.push(f); };
+  if (fmt !== "reel") {
+    const n = fmt === "story" ? 1 : Math.max(1, (post.slides || []).length);
+    for (let i = 0; i < n; i++) save(path.join(outDir, String(i + 1).padStart(2, "0") + ".jpg"), await page.evaluate(({ post, i, brand }) => still(post, i, brand), { post, i, brand }));
+  } else {
+    const slides = (post.slides && post.slides.length) ? post.slides : [{ kind: "frase", title: String((post.texts && post.texts.pt) || "").split("\n")[0] }];
+    const txtOf = s => ["title", "body", "stat"].map(k => s[k] == null ? "" : (typeof s[k] === "string" ? s[k] : (s[k].pt || ""))).join(" ");
+    const durs = slides.map((s, k) => { const w = txtOf(s).split(/\s+/).filter(Boolean).length; return Math.min(4.6, Math.max(k === 0 ? 2.6 : 2.4, 1.2 + w * 0.24)); });
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "reel-"));
+    let fno = 0, t0 = 0;
+    for (let i = 0; i < slides.length; i++) {
+      const nF = Math.round(durs[i] * FPS);
+      for (let f = 0; f < nF; f++) {
+        const ts = f / FPS, t = t0 + ts;
+        const data = await page.evaluate(({ post, i, brand, t, ts }) => frame(post, i, brand, t, ts, i > 0 ? i - 1 : null, ts), { post: { ...post, slides }, i, brand, t, ts });
+        fs.writeFileSync(path.join(tmp, String(fno++).padStart(5, "0") + ".jpg"), Buffer.from(data.split(",")[1], "base64"));
+      }
+      t0 += durs[i];
+    }
+    save(path.join(outDir, "capa.jpg"), await page.evaluate(({ post, brand }) => still(post, 0, brand), { post: { ...post, slides }, brand }));
+    const mp4 = path.join(outDir, "reel.mp4");
+    execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", path.join(tmp, "%05d.jpg"),
+      "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100", "-shortest",
+      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", "-preset", "medium", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", mp4]);
+    fs.rmSync(tmp, { recursive: true, force: true });
+    files.push(mp4);
   }
   await browser.close();
   console.log(JSON.stringify(files));
