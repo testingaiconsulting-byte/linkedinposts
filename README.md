@@ -24,3 +24,12 @@ Fila de publicação dos posts aprovados na Central de Conteúdo. O GitHub corre
 O token dura 60 dias. Quando expirar, repetir o passo 3 e substituir o segredo.
 
 Para publicar na página da empresa em vez do perfil pessoal, é preciso o produto *Community Management API* (aprovação pelo LinkedIn) e o segredo `LINKEDIN_AUTHOR_URN` com `urn:li:organization:<id>`.
+
+## Instagram (via Metricool)
+
+Os posts do Instagram aprovados no painel são publicados pelo Metricool, que precisa de imagens com um link público.
+
+- `render/render.js` — gera os JPG (1080×1350) de um post a partir dos slides do painel, com as letras em `render/fonts/` (Archivo e IBM Plex, licença OFL).
+- `ig/<id>/NN.jpg` — as imagens de cada post aprovado, servidas por `raw.githubusercontent.com`.
+
+Uma tarefa agendada no Claude gera as imagens, faz *commit* aqui e agenda o post no Metricool para a hora aprovada.
