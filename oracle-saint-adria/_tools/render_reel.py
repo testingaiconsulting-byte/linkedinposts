@@ -63,7 +63,7 @@ def main():
     cmd += ["-filter_complex", ";".join(parts), "-map", "[vout]", "-map", "[aout]",
             "-c:a", "aac", "-b:a", "128k", "-ac", "2",
             "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "high", "-level", "4.1",
-            "-pix_fmt", "yuv420p", "-r", str(FPS), "-b:v", "6M", "-maxrate", "8M", "-bufsize", "12M",
+            "-pix_fmt", "yuv420p", "-r", str(FPS), "-b:v", "4M", "-maxrate", "5M", "-bufsize", "8M",
             "-movflags", "+faststart", "-t", f"{total:.3f}", a.out]
     subprocess.run(cmd, check=True)
     print(f"ok {n} slides, {total:.1f}s -> {a.out}")
