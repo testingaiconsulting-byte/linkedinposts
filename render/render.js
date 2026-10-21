@@ -1,4 +1,4 @@
-// Gera os visuais de um post da Central de Conteúdo com a identidade "Claudio Braga · AI Consulting"
+// Gera os visuais de um post da Central de Conteúdo com a identidade "Claudio Braga · hanuman.work"
 // (render/draw.js, render/assets, render/fonts).
 // Uso: node render/render.js <post.json> <pasta-de-saida> [marca.json]
 //  - carrossel/imagem: 01.jpg, 02.jpg, ... (1080x1350)
@@ -13,8 +13,8 @@ if (!chromium) { console.error("Playwright não encontrado"); process.exit(1); }
 const [, , postFile, outDir, brandFile] = process.argv;
 if (!postFile || !outDir) { console.error("Uso: node render/render.js <post.json> <pasta> [marca.json]"); process.exit(1); }
 const post = JSON.parse(fs.readFileSync(postFile, "utf8"));
-const brand = Object.assign({ ink: "#111111", paper: "#FFFFFF", muted: "#8A8A8A", name: "Claudio Braga", tagline: "AI Consulting",
-  fontTitle: "Space Grotesk", fontBody: "Space Grotesk", fontLabel: "Syncopate" },
+const brand = Object.assign({ ink: "#14161A", paper: "#F5F2EC", muted: "#6E6A64", accent: "#E4572E", name: "Claudio Braga", site: "hanuman.work",
+  fontTitle: "Archivo", fontBody: "IBM Plex Sans", fontLabel: "IBM Plex Mono" },
   brandFile ? JSON.parse(fs.readFileSync(brandFile, "utf8")) : {});
 const here = __dirname;
 const b64 = f => fs.readFileSync(path.join(here, f)).toString("base64");
@@ -27,13 +27,16 @@ const W = 1080, H = tall ? 1920 : 1350, FPS = 24;
   fs.mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
   const page = await browser.newPage();
-  const css = `@font-face{font-family:"Space Grotesk";src:url(data:font/ttf;base64,${b64("fonts/SpaceGrotesk.ttf")});font-weight:300 700}
+  const css = `@font-face{font-family:"Archivo";src:url(data:font/ttf;base64,${b64("fonts/Archivo.ttf")});font-weight:100 900}
+@font-face{font-family:"IBM Plex Sans";src:url(data:font/ttf;base64,${b64("fonts/IBMPlexSans.ttf")});font-weight:100 700}
+@font-face{font-family:"IBM Plex Mono";src:url(data:font/ttf;base64,${b64("fonts/IBMPlexMono-Medium.ttf")});font-weight:400 500}
+@font-face{font-family:"Space Grotesk";src:url(data:font/ttf;base64,${b64("fonts/SpaceGrotesk.ttf")});font-weight:300 700}
 @font-face{font-family:"Syncopate";src:url(data:font/ttf;base64,${b64("fonts/Syncopate-Bold.ttf")});font-weight:700}`;
   await page.setContent(`<html><head><style>${css}</style></head><body>
 <canvas id="c" width="${W}" height="${H}"></canvas>
 <img id="art" src="data:image/jpeg;base64,${b64("assets/arte.jpg")}"><img id="logo" src="data:image/jpeg;base64,${b64("assets/logo.jpg")}">
 <script>${DRAW}
-window.ready=(async()=>{ await Promise.all(['700 80px "Space Grotesk"','600 40px "Space Grotesk"','400 40px "Space Grotesk"','500 24px "Space Grotesk"','700 19px "Syncopate"'].map(f=>document.fonts.load(f)));
+window.ready=(async()=>{ await Promise.all(['800 80px "Archivo"','700 40px "Archivo"','400 40px "IBM Plex Sans"','600 24px "IBM Plex Sans"','500 22px "IBM Plex Mono"'].map(f=>document.fonts.load(f)));
   const ims=[document.getElementById("art"),document.getElementById("logo")]; await Promise.all(ims.map(im=>im.complete?0:new Promise(r=>{im.onload=r;im.onerror=r;}))); })();
 window.IMGS=()=>({art:document.getElementById("art"),logo:document.getElementById("logo")});
 window.still=(post,i,brand)=>{ const cv=document.getElementById("c"); drawSlideCB(cv,post,i,"pt",brand,IMGS()); return cv.toDataURL("image/jpeg",0.92); };

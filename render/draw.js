@@ -1,14 +1,17 @@
-// Visual "Claudio Braga · AI Consulting": branco, preto e cinzento, com a arte em linhas e o logo CB.
-// drawSlideCB(canvas, post, indiceDoSlide, lingua, marca, imagens{art,logo}, opcoes{layer,drift})
-// Formatos: 1080x1350 (feed) e 1080x1920 (reel/story, com margens para a interface do Instagram).
-// opcoes.layer: "bg" (fundo, arte e rodapé), "text" (só o texto) ou nada (tudo). opcoes.drift: segundos (move a arte).
+// Visual "Claudio Braga · hanuman.work" — alinhado com o site hanuman.work:
+// etiqueta de secção em mono ("PILAR / 02"), secções numeradas 01–05, caixa "Em resumo",
+// motivo dos 5 níveis de maturidade, assinatura hanuman.work e apelo ao Diagnóstico Grátis.
+// drawSlideCB(canvas, post, indiceDoSlide, lingua, marca, imagens, opcoes{layer,drift})
+// Tipos de slide: capa, ponto, numero, frase, resumo, cta. 1080x1350 (feed) e 1080x1920 (reel/story).
+// opcoes.layer: "bg" (fundo e rodapé), "text" (só o texto) ou nada (tudo). opcoes.drift: segundos (anima o motivo).
 function drawSlideCB(cv,p,i,lang,b,imgs,opts){
-  imgs=imgs||{}; opts=opts||{};
-  const W=cv.width,H=cv.height,P=96,maxW=W-2*P;
-  const tall=H>1700, T=tall?250:0, FY=tall?H-430:H-150;
+  opts=opts||{}; b=b||{};
+  const W=cv.width,H=cv.height,P=88,maxW=W-2*P;
+  const tall=H>1700, T=tall?230:0, FY=tall?H-420:H-128;
   const ctx=cv.getContext("2d");
-  const ink=b.ink||"#111111", paper=b.paper||"#FFFFFF", mute=b.muted||"#8A8A8A";
-  const FT=b.fontTitle||"Space Grotesk", FB=b.fontBody||"Space Grotesk", FL=b.fontLabel||"Syncopate";
+  const ink=b.ink||"#14161A", paper=b.paper||"#F5F2EC", mute=b.muted||"#6E6A64", acc=b.accent||"#E4572E",
+        dark=b.dark||ink, soft=b.soft||"#ECE7DE", line=b.line||"#D8D2C7";
+  const FT=b.fontTitle||"Archivo", FB=b.fontBody||"IBM Plex Sans", FL=b.fontLabel||"IBM Plex Mono";
   const tr=(v,l)=>v==null?"":(typeof v==="string"?v:(v[l]??v.pt??v.en??""));
   const font=(w,s,f)=>w+" "+s+'px "'+f+'", sans-serif';
   const lines=(text,mw)=>{ const out=[]; String(text||"").split("\n").forEach(par=>{ const ws=par.split(/[ \t]+/).filter(Boolean); if(!ws.length){out.push("");return;} let ln=ws[0]; for(let k=1;k<ws.length;k++){ const t=ln+" "+ws[k]; if(ctx.measureText(t).width<=mw) ln=t; else {out.push(ln); ln=ws[k];} } out.push(ln); }); return out; };
@@ -16,49 +19,69 @@ function drawSlideCB(cv,p,i,lang,b,imgs,opts){
   const block=(ls,x,y,lh)=>{ ls.forEach((l,k)=>ctx.fillText(l,x,y+k*lh)); return y+ls.length*lh; };
   const sp=v=>{ try{ ctx.letterSpacing=v; }catch(e){} };
   const alpha=(hex,a)=>{ const h=String(hex).replace("#",""); const n=parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16)||0; return "rgba("+(n>>16&255)+","+(n>>8&255)+","+(n&255)+","+a+")"; };
+  const rr=(x,y,w,h,r)=>{ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); };
   const first=t=>String(t||"").split("\n").find(l=>l.trim())||"";
   const slides=(p.slides&&p.slides.length)?p.slides:[{kind:"frase",title:first(tr(p.texts,lang))}];
-  const n=slides.length, s=slides[Math.min(i,n-1)], kind=s.kind||"ponto";
+  const n=slides.length, idx=Math.min(i,n-1), s=slides[idx], kind=s.kind||"ponto";
   const title=tr(s.title,lang), body=tr(s.body,lang);
-  const big=kind==="capa"||kind==="cta";
+  const onDark=kind==="cta"; const fg=onDark?paper:ink, fgMute=onDark?alpha(paper,.7):alpha(ink,.7);
+  const site=b.site||"hanuman.work", person=b.name||"Claudio Braga";
   ctx.textBaseline="alphabetic";
+
+  // motivo: 5 níveis de maturidade (barras a subir), discreto
+  const levels=(x0,yBase,wTot,hMax,col,a,d)=>{ const bw=wTot/5-14; for(let k=0;k<5;k++){ const h=hMax*(0.28+0.18*k)*(1+0.03*Math.sin((d||0)*0.6+k));
+      ctx.fillStyle=k===4?alpha(acc,a*1.6>1?1:a*1.6):alpha(col,a); rr(x0+k*(bw+14),yBase-h,bw,h,6); ctx.fill(); } };
+
   if(opts.layer!=="text"){
-    ctx.fillStyle=paper; ctx.fillRect(0,0,W,H);
-    if(imgs.art&&imgs.art.width){ const a=imgs.art, r=a.height/a.width, d=opts.drift||0;
-      const soft=(w,h)=>{ const o=document.createElement("canvas"); o.width=Math.round(w); o.height=Math.round(h); const c=o.getContext("2d"); c.drawImage(a,0,0,o.width,o.height);
-        c.globalCompositeOperation="destination-in"; c.save(); c.translate(o.width/2,o.height/2); c.scale(o.width/2,o.height/2);
-        const g=c.createRadialGradient(0,0,0,0,0,1); g.addColorStop(0,"rgba(0,0,0,1)"); g.addColorStop(.62,"rgba(0,0,0,.9)"); g.addColorStop(1,"rgba(0,0,0,0)");
-        c.fillStyle=g; c.beginPath(); c.arc(0,0,1,0,Math.PI*2); c.fill(); c.restore(); return o; };
-      const dx=Math.sin(d*0.35)*40, dy=Math.cos(d*0.27)*24, sc=1+0.04*Math.sin(d*0.2);
-      if(big||tall){ const w=W*(tall?1.6:1.25)*sc, h=w*r; ctx.globalAlpha=tall&&!big?.22:.6; ctx.drawImage(soft(w,h),W-w*.86+dx,(tall?FY-h+80:H-h-90)+dy); }
-      else { const w=W*.7*sc, h=w*r; ctx.globalAlpha=.18; ctx.drawImage(soft(w,h),W-w*.7+dx,-h*.22+dy); }
-      ctx.globalAlpha=1; }
-    // rodapé: logo + assinatura + número do slide
-    ctx.fillStyle=paper; ctx.globalAlpha=.9; ctx.fillRect(0,FY,W,tall?140:150); ctx.globalAlpha=1;
-    ctx.fillStyle=alpha(ink,.85); ctx.fillRect(P,FY,maxW,1.5);
-    let x=P; if(imgs.logo&&imgs.logo.width){ ctx.drawImage(imgs.logo,P-6,FY+22,76,76); x=P+84; }
-    ctx.fillStyle=ink; ctx.font=font(700,17,FL); sp("4px"); ctx.fillText((b.name||"CLAUDIO BRAGA").toUpperCase(),x,FY+58);
-    ctx.fillStyle=mute; ctx.fillText((b.tagline||"AI CONSULTING").toUpperCase(),x,FY+86); sp("0px");
-    if(n>1&&!tall){ ctx.font=font(500,24,FB); ctx.fillStyle=mute; const t=(Math.min(i,n-1)+1)+" / "+n; ctx.fillText(t,W-P-ctx.measureText(t).width,FY+76); }
+    ctx.fillStyle=onDark?dark:paper; ctx.fillRect(0,0,W,H);
+    // cabeçalho: wordmark + etiqueta
+    ctx.fillStyle=fg; ctx.font=font(800,30,FT); sp("-0.5px"); ctx.fillText(site.replace(/\..*$/,""),P,T+92);
+    const wm=ctx.measureText(site.replace(/\..*$/,"")).width; ctx.fillStyle=acc; ctx.fillText(site.slice(site.indexOf(".")>0?site.indexOf("."):site.length),P+wm,T+92); sp("0px");
+    ctx.fillStyle=onDark?alpha(paper,.25):line; ctx.fillRect(P,T+122,maxW,2);
+    if(kind==="capa"||kind==="cta") levels(W-P-300,tall?FY-60:FY-56,300,tall?520:340,onDark?paper:ink,onDark?.10:.07,opts.drift);
+    // rodapé
+    ctx.fillStyle=onDark?alpha(paper,.25):line; ctx.fillRect(P,FY,maxW,2);
+    ctx.font=font(600,24,FB); ctx.fillStyle=fg; ctx.fillText(person,P,FY+56);
+    const pw=ctx.measureText(person).width; ctx.font=font(400,24,FB); ctx.fillStyle=onDark?alpha(paper,.6):mute; ctx.fillText("  ·  "+(b.tagline||"Consultor de IA, "+site),P+pw,FY+56);
+    if(n>1&&!tall){ ctx.font=font(500,22,FL); ctx.fillStyle=onDark?alpha(paper,.6):mute; const t=String(idx+1).padStart(2,"0")+" / "+String(n).padStart(2,"0"); ctx.fillText(t,W-P-ctx.measureText(t).width,FY+56); }
   }
   if(opts.layer==="bg") return;
-  // etiqueta
-  const eb=tr(s.eyebrow,lang)||p.pilar||"";
-  ctx.fillStyle=ink; ctx.fillRect(P,T+P,48,3);
-  ctx.fillStyle=alpha(ink,.62); ctx.font=font(700,19,FL); sp("5px"); ctx.fillText(eb.toUpperCase().slice(0,40),P,T+P+50); sp("0px");
+
+  // etiqueta de secção estilo site: "PILAR / 02"
+  const pts=slides.slice(0,idx+1).filter(x=>(x.kind||"ponto")==="ponto").length;
+  const eb=(tr(s.eyebrow,lang)||p.pilar||"").toUpperCase().slice(0,34);
+  const tag=eb+(kind==="ponto"?"  /  "+String(pts).padStart(2,"0"):"");
+  ctx.font=font(500,21,FL); sp("2px"); ctx.fillStyle=onDark?alpha(paper,.7):mute; if(tag.trim()) ctx.fillText(tag,P,T+190); sp("0px");
   let y; const bodyMax=tall?7:4;
-  if(kind==="capa"){ const f=fit(title,maxW,tall?7:6,tall?108:100,56,700,FT); ctx.fillStyle=ink; ctx.font=font(700,f.size,FT); sp("-1px"); y=block(f.ls,P,T+300,f.size*1.06); sp("0px");
-    if(body){ ctx.font=font(400,38,FB); ctx.fillStyle=alpha(ink,.72); y=block(lines(body,maxW*.9).slice(0,bodyMax),P,y+36,52); }
-    if(n>1&&!tall){ ctx.fillStyle=ink; ctx.font=font(700,18,FL); sp("4px"); ctx.fillText(lang==="en"?"SWIPE →":"DESLIZE →",P,H-200); sp("0px"); } }
-  else if(kind==="numero"){ const st=tr(s.stat,lang); const f=fit(st,maxW,1,250,110,700,FT); ctx.fillStyle=ink; ctx.font=font(700,f.size,FT); sp("-4px"); ctx.fillText(st,P-8,T+260+f.size*.8); sp("0px");
-    y=T+260+f.size*.8+100; const ft=fit(title,maxW,4,58,38,600,FT); ctx.fillStyle=ink; ctx.font=font(600,ft.size,FT); y=block(ft.ls,P,y,ft.size*1.16);
-    if(body){ ctx.font=font(400,34,FB); ctx.fillStyle=alpha(ink,.7); block(lines(body,maxW).slice(0,6),P,y+28,48); }
-    const src=tr(s.source,lang); if(src){ ctx.font=font(400,23,FB); ctx.fillStyle=mute; block(lines((lang==="en"?"Source: ":"Fonte: ")+src,maxW).slice(0,2),P,FY-55,31); } }
-  else if(kind==="frase"){ ctx.fillStyle=alpha(ink,.18); ctx.font=font(700,260,FT); ctx.fillText("“",P-14,T+440); const f=fit(title,maxW,tall?9:7,tall?84:76,44,600,FT); ctx.fillStyle=ink; ctx.font=font(600,f.size,FT); y=block(f.ls,P,T+470,f.size*1.18);
-    if(body){ ctx.font=font(400,34,FB); ctx.fillStyle=alpha(ink,.66); block(lines(body,maxW).slice(0,bodyMax),P,y+36,48); } }
-  else if(kind==="cta"){ const f=fit(title,maxW,5,tall?92:84,50,700,FT); ctx.fillStyle=ink; ctx.font=font(700,f.size,FT); sp("-1px"); y=block(f.ls,P,T+320,f.size*1.08); sp("0px");
-    if(body){ ctx.font=font(400,38,FB); ctx.fillStyle=alpha(ink,.72); y=block(lines(body,maxW*.9).slice(0,5),P,y+40,52); } ctx.fillStyle=ink; ctx.fillRect(P,y+44,96,3); }
-  else { const idx=slides.slice(0,i+1).filter(x=>(x.kind||"ponto")==="ponto").length; ctx.fillStyle=alpha(ink,.22); ctx.font=font(700,120,FL); ctx.fillText(String(idx).padStart(2,"0"),P-6,T+320);
-    const f=fit(title,maxW,tall?6:4,tall?76:64,42,700,FT); ctx.fillStyle=ink; ctx.font=font(700,f.size,FT); sp("-0.5px"); y=block(f.ls,P,T+440,f.size*1.12); sp("0px");
-    if(body){ ctx.font=font(400,36,FB); ctx.fillStyle=alpha(ink,.72); block(lines(body,maxW).slice(0,tall?10:9),P,y+34,52); } }
+
+  if(kind==="capa"){
+    const f=fit(title,maxW,tall?7:6,tall?104:96,54,800,FT); ctx.fillStyle=fg; ctx.font=font(800,f.size,FT); sp("-1.5px"); y=block(f.ls,P,T+300+f.size*.4,f.size*1.04); sp("0px");
+    if(body){ ctx.font=font(400,36,FB); ctx.fillStyle=fgMute; y=block(lines(body,maxW*.86).slice(0,bodyMax),P,y+34,50); }
+    if(n>1&&!tall){ ctx.font=font(500,22,FL); sp("2px"); ctx.fillStyle=acc; ctx.fillText(lang==="en"?"SWIPE  →":"DESLIZE  →",P,FY-48); sp("0px"); } }
+  else if(kind==="numero"){
+    const st=tr(s.stat,lang); const f=fit(st,maxW,1,240,104,800,FT); ctx.fillStyle=acc; ctx.font=font(800,f.size,FT); sp("-6px"); ctx.fillText(st,P-6,T+250+f.size*.8); sp("0px");
+    y=T+250+f.size*.8+90; const ft=fit(title,maxW,4,56,36,700,FT); ctx.fillStyle=ink; ctx.font=font(700,ft.size,FT); y=block(ft.ls,P,y,ft.size*1.15);
+    if(body){ ctx.font=font(400,33,FB); ctx.fillStyle=alpha(ink,.7); block(lines(body,maxW).slice(0,5),P,y+26,46); }
+    const src=tr(s.source,lang); if(src){ ctx.font=font(400,21,FL); ctx.fillStyle=mute; block(lines((lang==="en"?"Fonte / Source: ":"Fonte: ")+src,maxW).slice(0,2),P,FY-50,29); } }
+  else if(kind==="frase"){
+    const f=fit(title,maxW-48,tall?9:7,tall?80:72,42,700,FT); ctx.fillStyle=ink; ctx.font=font(700,f.size,FT); sp("-0.5px"); y=block(f.ls,P+48,T+250+f.size*.85,f.size*1.16); sp("0px");
+    if(body){ ctx.font=font(400,32,FB); ctx.fillStyle=alpha(ink,.66); y=block(lines(body,maxW-48).slice(0,bodyMax),P+48,y+30,46); }
+    ctx.fillStyle=acc; ctx.fillRect(P,T+250,8,y-T-250-f.size*.1); }
+  else if(kind==="resumo"){
+    // caixa "Em resumo" como nos artigos do site
+    const items=String(body||"").split("\n").map(x=>x.replace(/^[-•·]\s*/,"").trim()).filter(Boolean).slice(0,tall?6:5);
+    const ft=fit(title||(lang==="en"?"In short":"Em resumo"),maxW,3,64,40,800,FT); ctx.fillStyle=ink; ctx.font=font(800,ft.size,FT); sp("-1px"); y=block(ft.ls,P,T+260+ft.size*.4,ft.size*1.08); sp("0px");
+    ctx.font=font(400,33,FB); const ls=items.map(t=>lines(t,maxW-120)); const bh=ls.reduce((a,l)=>a+l.length*46+26,0)+56;
+    ctx.fillStyle=soft; rr(P,y+30,maxW,bh,14); ctx.fill(); let yy=y+30+64;
+    ls.forEach((l,k)=>{ ctx.fillStyle=acc; ctx.font=font(500,22,FL); ctx.fillText(String(k+1).padStart(2,"0"),P+36,yy-4); ctx.fillStyle=ink; ctx.font=font(400,33,FB); yy=block(l,P+96,yy,46)+26; }); }
+  else if(kind==="cta"){
+    const f=fit(title,maxW,5,tall?92:84,48,800,FT); ctx.fillStyle=paper; ctx.font=font(800,f.size,FT); sp("-1.5px"); y=block(f.ls,P,T+300+f.size*.4,f.size*1.06); sp("0px");
+    if(body){ ctx.font=font(400,36,FB); ctx.fillStyle=alpha(paper,.75); y=block(lines(body,maxW*.86).slice(0,5),P,y+36,50); }
+    const bt=(tr(s.button,lang)||b.cta||"Diagnóstico Grátis")+"  →"; ctx.font=font(600,30,FB); const bw=ctx.measureText(bt).width+72;
+    ctx.fillStyle=acc; rr(P,y+50,bw,84,42); ctx.fill(); ctx.fillStyle=b.accentInk||"#FFFFFF"; ctx.fillText(bt,P+36,y+50+53);
+    ctx.font=font(500,22,FL); sp("1px"); ctx.fillStyle=alpha(paper,.6); ctx.fillText(site+"/pt",P+bw+28,y+50+52); sp("0px"); }
+  else { // ponto
+    ctx.fillStyle=acc; ctx.font=font(800,150,FT); sp("-6px"); ctx.fillText(String(pts).padStart(2,"0"),P-6,T+380); sp("0px");
+    const f=fit(title,maxW,tall?6:4,tall?72:62,40,800,FT); ctx.fillStyle=ink; ctx.font=font(800,f.size,FT); sp("-1px"); y=block(f.ls,P,T+470+f.size*.3,f.size*1.1); sp("0px");
+    if(body){ ctx.font=font(400,35,FB); ctx.fillStyle=alpha(ink,.72); block(lines(body,maxW).slice(0,tall?10:8),P,y+30,50); } }
 }
