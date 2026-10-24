@@ -20,7 +20,7 @@ function mark(ctx,m,x,y,r,col){if(!m)return;ctx.save();ctx.strokeStyle=col;ctx.f
   else{font(ctx,800,r*1.1);ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("?",x,y+r*.05);}
   ctx.restore();}
 function footer(ctx,th){ctx.fillStyle=th.ink;ctx.textAlign="center";ctx.textBaseline="middle";fit(ctx,HANDLE,800,50,960);ctx.fillText(HANDLE,540,1262);
-  ctx.globalAlpha=.7;font(ctx,600,22);ctx.fillText("18+ · GAMBLE RESPONSIBLY",540,1318);ctx.globalAlpha=1;}
+  ctx.globalAlpha=.7;font(ctx,600,22);ctx.fillText(/^FOLLOW\b/i.test(HANDLE)?"18+ · GAMBLE RESPONSIBLY":"18+ · JOGA COM RESPONSABILIDADE",540,1318);ctx.globalAlpha=1;}
 function kicker(ctx,th,text,y,boxed){if(!text)return;font(ctx,700,32);ctx.textAlign="center";ctx.textBaseline="middle";const t=text.toUpperCase();
   if(boxed){const w=Math.min(ctx.measureText(t).width+64,980);ctx.strokeStyle=th.ink;ctx.lineWidth=4;roundRect(ctx,540-w/2,y-34,w,68,34);ctx.stroke();}
   ctx.fillStyle=boxed?th.ink:th.soft;fit(ctx,t,700,32,boxed?916:960);ctx.fillText(t,540,y+1);}
