@@ -48,6 +48,30 @@ def foto_css(s):
 
 def esc(s): return (s or '').replace('&', '&amp;').replace('<', '&lt;')
 
+def ficha(s):
+    """Ficha ilustrativa de um negocio num mapa (generica, sem marcas). s['estado']: 'antes' ou 'depois'."""
+    antes = s.get('estado') == 'antes'
+    nome, cat = esc(s.get('negocio') or 'Seu Negócio'), esc(s.get('categoria') or 'Padaria · Bairro')
+    if antes:
+        fotos = ('<div style="height:300px;background:#E8EAED;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#9AA0A6;font:500 30px R;gap:14px">'
+                 '<svg width="90" height="72" viewBox="0 0 24 19"><path d="M3 4h4l2-3h6l2 3h4v14H3z" fill="none" stroke="#BDC1C6" stroke-width="1.6"/><circle cx="12" cy="11" r="4" fill="none" stroke="#BDC1C6" stroke-width="1.6"/><path d="M2 1l20 17" stroke="#BDC1C6" stroke-width="1.6"/></svg>Nenhuma foto</div>')
+        rows = [('#9AA0A6', 'Horário não informado'), ('#9AA0A6', 'Telefone não informado'), (RED, 'Fechado permanentemente')]
+        pill = f'<div style="margin-top:30px;display:inline-block;background:#FCE8E6;color:{RED};border-radius:30px;padding:14px 28px;font:500 28px R">Informações desatualizadas</div>'
+    else:
+        tile = lambda c1, c2, lab: (f'<div style="flex:1;background:linear-gradient(135deg,{c1},{c2});display:flex;align-items:flex-end;padding:18px;color:#fff;font:500 26px R">{lab}</div>')
+        fotos = ('<div style="height:300px;display:flex;gap:6px">' + tile('#4285F4', '#1A73E8', 'Fachada') +
+                 tile('#34A853', '#188038', 'Tour 360°') + tile('#FBBC04', '#E37400', 'Produtos') + '</div>')
+        rows = [(GRN, 'Aberto agora · Fecha às 19:00'), (DARK, 'Telefone e WhatsApp atualizados'), (DARK, 'Fotos novas e tour 360°')]
+        pill = f'<div style="margin-top:30px;display:inline-block;background:#E6F4EA;color:#188038;border-radius:30px;padding:14px 28px;font:500 28px R">Página completa e atualizada</div>'
+    lines = ''.join(f'<div style="display:flex;align-items:center;gap:18px;margin-top:22px;font:400 32px R;color:{c}"><i style="width:14px;height:14px;border-radius:7px;background:{c};display:block"></i>{tx}</div>' for c, tx in rows)
+    btns = ''.join(f'<span style="border:2px solid #DADCE0;border-radius:30px;padding:12px 26px;color:{BLUE};font:500 26px R">{b}</span>' for b in ('Rotas', 'Ligar', 'Site'))
+    tag = (f'<div style="position:absolute;top:-28px;right:40px;background:{RED if antes else GRN};color:#fff;border-radius:30px;padding:12px 30px;font:700 28px R;letter-spacing:.06em">{"ANTES" if antes else "DEPOIS"}</div>')
+    return (f'<div style="position:absolute;left:120px;right:120px;top:330px;background:#fff;border-radius:36px;box-shadow:0 8px 40px rgba(60,64,67,.22);overflow:visible">{tag}'
+            f'<div style="border-radius:36px 36px 0 0;overflow:hidden">{fotos}</div>'
+            f'<div style="padding:34px 44px 40px"><div style="display:flex;align-items:center;gap:16px">{pin(RED, "#fff", 34)}<span style="font:700 46px R;color:{DARK}">{nome}</span></div>'
+            f'<div style="font:400 28px R;color:{GREY};margin-top:8px">{cat}</div>{lines}{pill}'
+            f'<div style="display:flex;gap:16px;margin-top:30px;{"opacity:.35" if antes else ""}">{btns}</div></div></div>')
+
 def html(s, i, n):
     k = s['kind'] if s['kind'] in TH else 'ponto'; t = dict(TH[k])
     fc = foto_css(s)
@@ -59,9 +83,11 @@ def html(s, i, n):
         dots = '<div class="dots">' + ''.join(f'<i style="background:{c}"></i>' for c in ACC) + '</div>'
         top = "top:460px" if fc else 'top:280px'
         body = f'<div class="c" style="{top}"><h1 style="color:{t["fg"]}">{esc(s["title"])}</h1>{dots}<p style="color:{t["body"]};margin-top:56px">{esc(s.get("body"))}</p></div>'
-    elif k == 'ponto':
+    elif k == 'ponto' and s['kind'] != 'mapa':
         col = ACC[(i - 1) % 4]
         body = f'<div class="c" style="top:{"620px" if fc else "220px"}"><div class="dot" style="background:{col}">{i}</div><h2 style="color:{t["fg"]};margin-top:56px">{esc(s["title"])}</h2><p style="color:{t["body"]};margin-top:44px">{esc(s.get("body"))}</p></div>'
+    elif s['kind'] == 'mapa':
+        body = f'<div class="c" style="top:110px"><h2 style="color:{t["fg"]};font-size:60px">{esc(s["title"])}</h2></div>' + ficha(s)
     else:
         btn = f'<div class="btn">{esc(s.get("button"))}</div>' if s.get('button') else ''
         body = f'<div class="c" style="top:280px">{pin("#fff", BLUE, 56)}<h1 style="color:{t["fg"]};font-size:92px;margin-top:40px">{esc(s["title"])}</h1><p style="color:{t["body"]};margin-top:52px">{esc(s.get("body"))}</p>{btn}</div>'
