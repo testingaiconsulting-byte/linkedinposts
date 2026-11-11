@@ -1,6 +1,8 @@
 """Gera os JPG (1080x1350) de um post da Atualiza Brasil 360 a partir dos slides da Central.
 Uso: python3 atualiza360/_tools/render.py <post.json com {"slides":[...]}> <pasta de saida>
-Slides: capa, ponto (numerado), cta (azul, com botao). Campo opcional \"foto\": caminho de uma fotografia (relativo ao json) usada como fundo, com degrade escuro e texto branco.
+Slides: capa, ponto (numerado), cta (azul, com botao), mapa (ficha antes/depois).
+Campo opcional "estilo" em cada slide, para variar o aspeto entre posts: "claro" (por defeito, branco), "azul" (fundo azul-escuro, texto branco),
+"amarelo" (fundo amarelo, texto escuro) ou "verde" (fundo verde, texto branco). Campo opcional "destaque" na capa: um pedaco do titulo que fica numa caixa vermelha. Campo opcional \"foto\": caminho de uma fotografia (relativo ao json) usada como fundo, com degrade escuro e texto branco.
 Estilo Google/Material (Roboto, branco, azul #1A73E8 e as 4 cores); sem logotipos nem marcas da Google."""
 import json, sys, base64, os
 from playwright.sync_api import sync_playwright
@@ -32,6 +34,13 @@ p{{font:400 38px/1.55 R}}
 TH = {'capa': dict(bg='#FFFFFF', fg=DARK, eb=GREY, body=GREY, line='#E8EAED', pg='#80868B', brand=DARK),
       'ponto': dict(bg='#F8F9FA', fg=DARK, eb=GREY, body='#3C4043', line='#E0E3E7', pg='#80868B', brand=DARK),
       'cta': dict(bg=BLUE, fg='#fff', eb='#D2E3FC', body='#E8F0FE', line='#5B9BF0', pg='#D2E3FC', brand='#fff')}
+
+EST = {'azul': dict(capa=dict(bg='linear-gradient(160deg,#0B2E6F 0%,#1A4FB8 100%)', fg='#fff', eb='#D2E3FC', body='#D2E3FC', line='rgba(255,255,255,.25)', pg='#AECBFA', brand='#fff'),
+                   ponto=dict(bg='#E8F0FE', fg='#0B2E6F', eb=GREY, body='#3C4043', line='#C6DAFC', pg='#5F6368', brand='#0B2E6F'), cbg='#0B2E6F'),
+       'amarelo': dict(capa=dict(bg='#FBBC04', fg=DARK, eb=DARK, body='#3C2F00', line='rgba(32,33,36,.2)', pg='#5F4B00', brand=DARK),
+                   ponto=dict(bg='#FEF7E0', fg=DARK, eb=GREY, body='#3C4043', line='#FCE8B2', pg='#80868B', brand=DARK), cbg=BLUE),
+       'verde': dict(capa=dict(bg='#188038', fg='#fff', eb='#CEEAD6', body='#E6F4EA', line='rgba(255,255,255,.25)', pg='#CEEAD6', brand='#fff'),
+                   ponto=dict(bg='#E6F4EA', fg=DARK, eb=GREY, body='#3C4043', line='#CEEAD6', pg='#80868B', brand=DARK), cbg='#188038')}
 
 def pin(color, hole, w=30):
     h = int(w * 1.4)
@@ -74,26 +83,33 @@ def ficha(s):
 
 def html(s, i, n):
     k = s['kind'] if s['kind'] in TH else 'ponto'; t = dict(TH[k])
+    es = EST.get(s.get('estilo') or '')
+    if es and k in ('capa', 'ponto'): t.update(es[k])
+    if es and k == 'cta': t['bg'] = es['cbg']
+    dark_bg = bool(es) and k == 'capa' and s.get('estilo') != 'amarelo'
     fc = foto_css(s)
     if fc: t.update(fg='#fff', body='#E8EAED', eb='#E8EAED', line='rgba(255,255,255,.35)', pg='#E8EAED', brand='#fff', bg=fc)
     strip = '<div class="strip">' + ''.join(f'<i style="background:{c}"></i>' for c in ACC) + '</div>' if k != 'cta' else ''
-    eb = (f'<div class="eb" style="color:{t["eb"]}"><span class="chip">{pin(RED, "#fff", 22)}{esc(s.get("eyebrow"))}</span></div>'
+    eb = (f'<div class="eb" style="color:{t["eb"]}"><span class="chip" style="border-color:{"rgba(255,255,255,.4)" if dark_bg else "#DADCE0"}">{pin(RED, "#fff", 22)}{esc(s.get("eyebrow"))}</span></div>'
           if k == 'capa' and s.get('eyebrow') else '')
     if k == 'capa':
-        dots = '<div class="dots">' + ''.join(f'<i style="background:{c}"></i>' for c in ACC) + '</div>'
+        dots = '<div class="dots">' + ''.join(f'<i style="background:{DARK if (c == YEL and s.get("estilo") == "amarelo") else c}"></i>' for c in ACC) + '</div>'
         top = "top:460px" if fc else 'top:280px'
-        body = f'<div class="c" style="{top}"><h1 style="color:{t["fg"]}">{esc(s["title"])}</h1>{dots}<p style="color:{t["body"]};margin-top:56px">{esc(s.get("body"))}</p></div>'
+        tt = esc(s["title"]); d = esc(s.get("destaque") or "")
+        if d and d in tt: tt = tt.replace(d, f'<span style="background:{RED};color:#fff;border-radius:14px;padding:0 16px;-webkit-box-decoration-break:clone;box-decoration-break:clone">{d}</span>', 1)
+        body = f'<div class="c" style="{top}"><h1 style="color:{t["fg"]}">{tt}</h1>{dots}<p style="color:{t["body"]};margin-top:56px">{esc(s.get("body"))}</p></div>'
     elif k == 'ponto' and s['kind'] != 'mapa':
         col = ACC[(i - 1) % 4]
         body = f'<div class="c" style="top:{"620px" if fc else "220px"}"><div class="dot" style="background:{col}">{i}</div><h2 style="color:{t["fg"]};margin-top:56px">{esc(s["title"])}</h2><p style="color:{t["body"]};margin-top:44px">{esc(s.get("body"))}</p></div>'
     elif s['kind'] == 'mapa':
         body = f'<div class="c" style="top:110px"><h2 style="color:{t["fg"]};font-size:60px">{esc(s["title"])}</h2></div>' + ficha(s)
     else:
-        btn = f'<div class="btn">{esc(s.get("button"))}</div>' if s.get('button') else ''
-        body = f'<div class="c" style="top:280px">{pin("#fff", BLUE, 56)}<h1 style="color:{t["fg"]};font-size:92px;margin-top:40px">{esc(s["title"])}</h1><p style="color:{t["body"]};margin-top:52px">{esc(s.get("body"))}</p>{btn}</div>'
-    sw = f'<div class="sw" style="color:{"#8AB4F8" if fc else BLUE}">Arraste →</div>' if i == 0 and n > 1 else ''
-    brand = (f'<div class="brand" style="color:{t["brand"]}">{pin("#fff" if k=="cta" else RED, "#202124" if fc else t["bg"])}'
-             f'Atualiza Brasil <span style="color:{"#fff" if k=="cta" else "#8AB4F8" if fc else BLUE}">360</span></div>')
+        bc = t['bg'] if t['bg'].startswith('#') else BLUE
+        btn = f'<div class="btn" style="color:{bc}">{esc(s.get("button"))}</div>' if s.get('button') else ''
+        body = f'<div class="c" style="top:280px">{pin("#fff", t["bg"] if t["bg"].startswith("#") else BLUE, 56)}<h1 style="color:{t["fg"]};font-size:92px;margin-top:40px">{esc(s["title"])}</h1><p style="color:{t["body"]};margin-top:52px">{esc(s.get("body"))}</p>{btn}</div>'
+    sw = f'<div class="sw" style="color:{"#8AB4F8" if (fc or dark_bg) else DARK if s.get("estilo")=="amarelo" else BLUE}">Arraste →</div>' if i == 0 and n > 1 else ''
+    brand = (f'<div class="brand" style="color:{t["brand"]}">{pin("#fff" if (k=="cta" or dark_bg) else RED, "#202124" if fc else ("#0B2E6F" if s.get("estilo")=="azul" and k!="ponto" else "#188038" if s.get("estilo")=="verde" and k!="ponto" else t["bg"] if t["bg"].startswith("#") else BLUE))}'
+             f'Atualiza Brasil <span style="color:{"#fff" if (k=="cta" or dark_bg) else "#8AB4F8" if fc else BLUE}">360</span></div>')
     return (f'<html><head><meta charset=utf-8><style>{CSS}</style></head><body style="background:{t["bg"]}">{strip}{eb}{body}{sw}'
             f'<div class="line" style="background:{t["line"]}"></div>{brand}<div class="pg" style="color:{t["pg"]}">{i+1}/{n}</div></body></html>')
 
