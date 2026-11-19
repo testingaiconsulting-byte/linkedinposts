@@ -1,6 +1,7 @@
 """Gera os JPG (1080x1350) de um post do Novoclick a partir dos slides da Central.
 Uso: python3 novoclick/_tools/render.py <post.json com {"slides":[...]}> <pasta de saida>
-Slides: capa ou prazo (fundo escuro), ponto (claro, numerado), cta (verde, com botao)."""
+Slides: capa ou prazo (fundo escuro), ponto (claro, numerado), cta (verde, com botao).
+Campo opcional "estilo" na capa/prazo, para variar a 1.a imagem entre posts: "escuro" (por defeito), "claro", "verde" ou "menta"."""
 import json,sys,base64,os
 from playwright.sync_api import sync_playwright
 HERE=os.path.dirname(os.path.abspath(__file__))
@@ -21,13 +22,15 @@ h1{{font:800 108px/1.03 A;letter-spacing:-.02em}} h2{{font:800 66px/1.12 A;lette
 .btn{{margin-top:60px;background:#fff;color:#2E9E4A;border-radius:60px;height:110px;display:flex;align-items:center;justify-content:center;font:600 34px P}}"""
 TH={'dark':dict(bg='#2B2E33',fg='#fff',bar='#7DD49F',eb='#AFB0B4',body='#D2D3D5',line='#5a5d62',pg='#9a9ca0'),
     'light':dict(bg='#F3F5F2',fg='#2E3235',bar='#2E9E4A',eb='#8a8d90',body='#55595c',line='#cfd2cf',pg='#8a8d90'),
-    'green':dict(bg='#2E9E4A',fg='#fff',bar='#fff',eb='#d8f0df',body='#eef8f1',line='#7cc792',pg='#d8f0df')}
+    'green':dict(bg='#2E9E4A',fg='#fff',bar='#fff',eb='#d8f0df',body='#eef8f1',line='#7cc792',pg='#d8f0df'),
+    'mint':dict(bg='#DFF3E5',fg='#1F3B2A',bar='#2E9E4A',eb='#3F7A55',body='#36513F',line='#B9DFC5',pg='#3F7A55')}
+EST={'escuro':('dark','dark','#7DD49F'),'claro':('light','light','#2E9E4A'),'verde':('green','green','#FFFFFF'),'menta':('mint','light','#2E9E4A')}
 def esc(s): return (s or '').replace('&','&amp;').replace('<','&lt;')
 def html(s,i,n):
-    k=s['kind']; t=TH['dark' if k in('capa','prazo') else 'green' if k=='cta' else 'light']
-    logo=b64(os.path.join(HERE,f"logo_{'dark' if k in('capa','prazo') else 'green' if k=='cta' else 'light'}.png"))
+    k=s['kind']; th,lg,ac=EST.get(s.get('estilo') or 'escuro',EST['escuro']) if k in('capa','prazo') else (('green','green','#fff') if k=='cta' else ('light','light','#2E9E4A'))
+    t=TH[th]; logo=b64(os.path.join(HERE,f"logo_{lg}.png"))
     eb=f'<div class="eb" style="color:{t["eb"]}">{esc(s.get("eyebrow"))}</div>' if k in('capa','prazo') else ''
-    if k=='prazo': body=f'<div class="c" style="top:250px"><div class="num" style="color:#7DD49F;font-size:170px">{esc(s.get("stat"))}</div><h2 style="color:{t["fg"]};margin-top:50px;font-size:76px">{esc(s["title"])}</h2><p style="color:{t["body"]};margin-top:50px">{esc(s.get("body"))}</p></div>'
+    if k=='prazo': body=f'<div class="c" style="top:250px"><div class="num" style="color:{ac};font-size:170px">{esc(s.get("stat"))}</div><h2 style="color:{t["fg"]};margin-top:50px;font-size:76px">{esc(s["title"])}</h2><p style="color:{t["body"]};margin-top:50px">{esc(s.get("body"))}</p></div>'
     elif k=='capa': body=f'<div class="c" style="top:270px"><h1 style="color:{t["fg"]}">{esc(s["title"])}</h1><p style="color:{t["body"]};margin-top:70px">{esc(s.get("body"))}</p></div>'
     elif k=='ponto': body=f'<div class="c" style="top:240px"><div class="num" style="color:#2E9E4A">{i:02d}</div><h2 style="color:{t["fg"]};margin-top:40px">{esc(s["title"])}</h2><p style="color:{t["body"]};margin-top:50px">{esc(s.get("body"))}</p></div>'
     else: body=f'<div class="c" style="top:300px"><h1 style="color:{t["fg"]};font-size:96px">{esc(s["title"])}</h1><p style="color:{t["body"]};margin-top:60px">{esc(s.get("body"))}</p>'+(f'<div class="btn">{esc(s.get("button") or "Envie-nos mensagem")}</div>' if s.get('button',True) is not None else '')+'</div>'
